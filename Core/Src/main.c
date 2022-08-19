@@ -38,7 +38,9 @@
 
 const unsigned int note_freq[9] = {0 ,262, 294, 330, 349, 392, 440, 494, 523};
 //                                 rest,do,  re,  mi,  fa,  so,  la,  si,  do_high
-#define DEFAULT_DUTY 90
+
+
+#define DEFAULT_DUTY 95
 #define BUZZER_MODE 0
 #define SONG_MODE_1 1
 #define SONG_MODE_2 2
@@ -46,31 +48,48 @@ const unsigned int note_freq[9] = {0 ,262, 294, 330, 349, 392, 440, 494, 523};
 
 #define INCRE 1.05946
 
+const int score[10][3][402] =
+{
+	{0},
+	{ // 校歌
+		 {1,1,3,5,5,  6,1,6,5,5,  3,3,5,3,1,  6,1,2,5,5,
+		  6,6,6,1,5,  3,2,3,2,1,  2,5,5,4,5,  6,6,7,6,5,
+		  1,1,6,1,    5,5,6,5,1,  6,6,5,3,    2,3,4,5,5,
+		  1,1,1,3,    2,3,2,1,1,  6,6,5,3,    2,2,3,1,1,
+		  1,1,1,0,    6,6,6,0,    5,5,6,5,    2,2,3,5,5,
+		  1,1,1,0,    6,6,6,0,    5,5,6,5,    2,2,3,5,5,
+		  -1}, // 基本音符
 
+		 {2,1,1,2,2,  2,1,1,2,2,  2,2,1,1,2,  2,1,1,2,2,
+		  2,2,1,1,2,  2,2,1,1,2,  2,2,1,1,2,  2,2,1,1,2,
+		  3,1,2,2,    2,1,1,2,2,  3,1,2,2,    2,1,1,2,2,
+		  3,1,2,2,    2,1,1,2,2,  3,1,2,2,    2,1,1,2,2,
+		  2,2,2,2,    2,2,2,2,    2,2,2,2,    2,1,1,2,2,
+		  2,2,2,2,    2,2,2,2,    2,2,2,2,    2,1,1,2,2,
+		  -1},// 几拍
 
-const int note[201]            = {1,1,3,5,5,  6,1,6,5,5,  3,3,5,3,1,  6,1,2,5,5,
-                                  6,6,6,1,5,  3,2,3,2,1,  2,5,5,4,5,  6,6,7,6,5,
-                                  1,1,6,1,    5,5,6,5,1,  6,6,5,3,    2,3,4,5,5,
-                                  1,1,1,3,    2,3,2,1,1,  6,6,5,3,    2,2,3,1,1,
-                                  1,1,1,0,    6,6,6,0,    5,5,6,5,    2,2,3,5,5,
-                                  1,1,1,0,    6,6,6,0,    5,5,6,5,    2,2,3,5,5,
--1};
+		 {0,0,0,0,0,  0,1,0,0,0,  0,0,0,0,0, -1,0,0,0,0,
+		  0,0,0,1,0,  0,0,0,0,0,  0,0,0,2,0,  0,0,0,0,0,
+		  1,1,0,1,    0,0,0,0,0,  0,0,0,0,    0,0,0,0,0,
+		  0,0,0,0,    0,0,0,0,0,  0,0,0,0,    0,0,0,0,0,
+		  1,1,1,0,    0,0,0,0,    0,0,0,0,    0,0,0,0,0,
+		  1,1,1,0,    0,0,0,0,    0,0,0,0,    0,0,0,0,0,
+		  -1} //升降�? +1�?8度，+2升半音，+3升八度且升半音,-1�?8度，-2降半�?
+	},
+	{ // 明明就
+		 {3,3,4,3,6,1,2,7,0,3,3,4,3,3,4,5,6,0,3,3,4,3,6,6,0,3,6,6,7,1,0,
+		  3,3,4,3,6,1,2,7,0,3,3,4,5,6,7,5,7,6,0,3,4,3,6,6,6,7,2,1,6,6,7,6,6,
+		  -1}, // 基本音符
 
-const int beat[201]            = {2,1,1,2,2,  2,1,1,2,2,  2,2,1,1,2,  2,1,1,2,2,
-                                  2,2,1,1,2,  2,2,1,1,2,  2,2,1,1,2,  2,2,1,1,2,
-                                  3,1,2,2,    2,1,1,2,2,  3,1,2,2,    2,1,1,2,2,
-                                  3,1,2,2,    2,1,1,2,2,  3,1,2,2,    2,1,1,2,2,
-                                  2,2,2,2,    2,2,2,2,    2,2,2,2,    2,1,1,2,2,
-                                  2,2,2,2,    2,2,2,2,    2,2,2,2,    2,1,1,2,2,
--1};
+		 {2,2,2,2,1,3,1,2,1,2,2,2,2,1,3,1,2,1,2,2,2,2,1,3,2,2,1,2,2,9,2,
+	      2,2,2,2,1,3,1,2,1,2,2,2,2,1,3,1,2,3,2,1,1,2,1,3,1,1,2,1,2,1,1,1,16,
+		  -1},// 几拍
 
-const int tone[201]            = {0,0,0,0,0,  0,1,0,0,0,  0,0,0,0,0, -1,0,0,0,0,
-                                  0,0,0,1,0,  0,0,0,0,0,  0,0,0,2,0,  0,0,0,0,0,
-                                  1,1,0,1,    0,0,0,0,0,  0,0,0,0,    0,0,0,0,0,
-                                  0,0,0,0,    0,0,0,0,0,  0,0,0,0,    0,0,0,0,0,
-                                  1,1,1,0,    0,0,0,0,    0,0,0,0,    0,0,0,0,0,
-                                  1,1,1,0,    0,0,0,0,    0,0,0,0,    0,0,0,0,0,
--1}; //+1�???8度，+2升半�???
+		 {1,1,3,1,0,3,1,0,0,1,1,3,1,0,2,2,0,0,1,1,3,1,0,0,0,1,0,0,0,3,0,
+	      1,1,3,1,0,3,1,0,0,1,1,3,3,1,1,3,1,1,0,1,3,1,0,0,0,0,1,3,0,0,0,0,0,
+		  -1} //升降�? +1�?8度，+2升半音，-1�?8度，-2降半�?
+	},
+};
 
 int play_mode = 0;
 
@@ -88,8 +107,8 @@ TIM_HandleTypeDef htim3;
 //int ratio = 0;
 //long int dot_unit = 300;
 //int j = 0;
-//int play_stop = 1;//播放�???????????1，暂停是-1
-//int which_song = -1;//放那首歌�??????
+//int play_stop = 1;//播放�????????????1，暂停是-1
+//int which_song = -1;//放那首歌�???????
 //千位是升降（1降，2升，还原则没有千位），百位是音符，十位是音长，个位是音区,此处是编谱区域；
 //const int score_org_2[] = {121,111,311,521,521,621,112,611,521,521,321,321,511,311,121,
 //                         620,111,211,521,-1};
@@ -118,14 +137,16 @@ void setPWM(double freq, int duty_percent)
 		TIM3->CCR1 = 0;
 		return ;
 	}
-	TIM3->ARR = 10000 / freq - 1;
+	TIM3->ARR = 100000.0 / freq - 1;
 	TIM3->CCR1 = (double)duty_percent * (TIM3->ARR + 1) / 100.0;
 }
 
 void init_buzzer()
 {
+	setPWM(0, 100);
+	HAL_Delay(1000);
 	unsigned int i;
-	for (i=1;i<8;i++) {
+	for (i=1;i<=8;i++) {
 		setPWM(note_freq[i], DEFAULT_DUTY);
 		HAL_Delay(200);
 	}
@@ -164,7 +185,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) // Keys interrupt
 		// small button pushed down
 		freq /= 2.0;
 	}
-	setPWM(freq, DEFAULT_DUTY);
+	if (play_mode == BUZZER_MODE)
+		setPWM(freq, DEFAULT_DUTY);
 }
 
 
@@ -172,14 +194,19 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) // Keys interrupt
 void play_music(const int* pnote, const int* pbeat, const int* ptone)
 {
 	int i;
-	for (i=0;pnote[i]!=-1 && play_mode != BUZZER_MODE;i++) {
+	int init_mode = play_mode;
+	if (init_mode == 0)
+		return ;
+	for (i=0;pnote[i]!=-1 && play_mode == init_mode;i++) {
 		double freq = note_freq[pnote[i]];
 
 		switch (ptone[i]) {
 		case 1:  freq *= 2; break;
+		case 3: freq *= 2 * INCRE; break;
 		case -1: freq /= 2; break;
 		case 2:  freq *= INCRE; break;
 		case -2: freq /= INCRE; break;
+		case -3: freq /= 2 * INCRE; break;
 		}
 		setPWM(freq, DEFAULT_DUTY);
 		HAL_Delay(200 * pbeat[i]);
@@ -248,18 +275,12 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  switch (play_mode) {
-	  case BUZZER_MODE:
+	  if (play_mode == BUZZER_MODE) {
 		  init_buzzer();
 		  while (play_mode==BUZZER_MODE);
-		  break;
-	  HAL_Delay(1000);
-	  case SONG_MODE_1:
-		  play_music(note, beat, tone);
-		  break;
-	  case SONG_MODE_2:
-		  break;
 	  }
+	  HAL_Delay(1000);
+	  play_music(score[play_mode][0], score[play_mode][1], score[play_mode][2]); // score[music_num(SONG_MODE_1/2/...)][note/beat/tone]
   }
   /* USER CODE END 3 */
 }
@@ -376,7 +397,7 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 16999;
+  htim3.Init.Prescaler = 1699;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim3.Init.Period = 9999;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
