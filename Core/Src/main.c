@@ -39,7 +39,7 @@
 const unsigned int note_freq[9] = {0 ,262, 294, 330, 349, 392, 440, 494, 523};
 //                                 rest,do,  re,  mi,  fa,  so,  la,  si,  do_high
 #define DEFAULT_DUTY 90
-#define PIANO_MODE 0
+#define BUZZER_MODE 0
 #define SONG_MODE_1 1
 #define SONG_MODE_2 2
 #define TOTAL_MODES 3
@@ -70,9 +70,9 @@ const int tone[201]            = {0,0,0,0,0,  0,1,0,0,0,  0,0,0,0,0, -1,0,0,0,0,
                                   0,0,0,0,    0,0,0,0,0,  0,0,0,0,    0,0,0,0,0,
                                   1,1,1,0,    0,0,0,0,    0,0,0,0,    0,0,0,0,0,
                                   1,1,1,0,    0,0,0,0,    0,0,0,0,    0,0,0,0,0,
--1}; //+1�??8度，+2升半�??
+-1}; //+1�???8度，+2升半�???
 
-int play_mode = SONG_MODE;
+int play_mode = 0;
 
 /* USER CODE END PM */
 
@@ -88,8 +88,8 @@ TIM_HandleTypeDef htim3;
 //int ratio = 0;
 //long int dot_unit = 300;
 //int j = 0;
-//int play_stop = 1;//播放�??????????1，暂停是-1
-//int which_song = -1;//放那首歌�?????
+//int play_stop = 1;//播放�???????????1，暂停是-1
+//int which_song = -1;//放那首歌�??????
 //千位是升降（1降，2升，还原则没有千位），百位是音符，十位是音长，个位是音区,此处是编谱区域；
 //const int score_org_2[] = {121,111,311,521,521,621,112,611,521,521,321,321,511,311,121,
 //                         620,111,211,521,-1};
@@ -122,6 +122,15 @@ void setPWM(double freq, int duty_percent)
 	TIM3->CCR1 = (double)duty_percent * (TIM3->ARR + 1) / 100.0;
 }
 
+void init_buzzer()
+{
+	unsigned int i;
+	for (i=1;i<8;i++) {
+		setPWM(note_freq[i], DEFAULT_DUTY);
+		HAL_Delay(200);
+	}
+	setPWM(0, 100);
+}
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) // Keys interrupt
 {
@@ -130,30 +139,32 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) // Keys interrupt
 //		return ;
 //	}
 //	lastTime = clock;
-	if (GPIO_Pin == GPIO_PIN_1) {
-		setPWM(note_freq[1], DEFAULT_DUTY);
-	}
-	if (GPIO_Pin == GPIO_PIN_2) {
-		setPWM(note_freq[2], DEFAULT_DUTY);
-	}
-	if (GPIO_Pin == GPIO_PIN_3) {
-		setPWM(note_freq[3], DEFAULT_DUTY);
-	}
-	if (GPIO_Pin == GPIO_PIN_4) {
-		setPWM(note_freq[4], DEFAULT_DUTY);
-	}
-	if (GPIO_Pin == GPIO_PIN_5) {
-		setPWM(note_freq[5], DEFAULT_DUTY);
-	}
-	if (GPIO_Pin == GPIO_PIN_6) {
-		setPWM(note_freq[6], DEFAULT_DUTY);
-	}
-	if (GPIO_Pin == GPIO_PIN_7) {
-		setPWM(note_freq[7], DEFAULT_DUTY);
-	}
 	if (GPIO_Pin == GPIO_PIN_8) {
-		play_mode = (play_mode + 1) % TOTAL_MODES;
+		if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_0)) {
+			// switch mode
+			play_mode = (play_mode + 1) % TOTAL_MODES;
+		}
+		return ;
 	}
+	double freq = 0.0;
+	switch (GPIO_Pin) {
+	case GPIO_PIN_1: freq = note_freq[1]; break;
+	case GPIO_PIN_2: freq = note_freq[2]; break;
+	case GPIO_PIN_3: freq = note_freq[3]; break;
+	case GPIO_PIN_4: freq = note_freq[4]; break;
+	case GPIO_PIN_5: freq = note_freq[5]; break;
+	case GPIO_PIN_6: freq = note_freq[6]; break;
+	case GPIO_PIN_7: freq = note_freq[7]; break;
+	}
+	if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_0)) {
+		// big button pushed down
+		freq *= 2.0;
+	}
+	if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_8) == 0) {
+		// small button pushed down
+		freq /= 2.0;
+	}
+	setPWM(freq, DEFAULT_DUTY);
 }
 
 
@@ -161,7 +172,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) // Keys interrupt
 void play_music(const int* pnote, const int* pbeat, const int* ptone)
 {
 	int i;
-	for (i=0;pnote[i]!=-1 && play_mode == SONG_MODE;i++) {
+	for (i=0;pnote[i]!=-1 && play_mode != BUZZER_MODE;i++) {
 		double freq = note_freq[pnote[i]];
 
 		switch (ptone[i]) {
@@ -227,7 +238,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1); //启动定时器TIM3通道1的PWM输出
   //定义函数
-  setPWM(note_freq[8], DEFAULT_DUTY);
+  setPWM(0, DEFAULT_DUTY);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -238,7 +249,9 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 	  switch (play_mode) {
-	  case PIANO_MODE:
+	  case BUZZER_MODE:
+		  init_buzzer();
+		  while (play_mode==BUZZER_MODE);
 		  break;
 	  HAL_Delay(1000);
 	  case SONG_MODE_1:
@@ -426,7 +439,7 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin : PC0 */
   GPIO_InitStruct.Pin = GPIO_PIN_0;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PB1 PB2 PB3 PB4
