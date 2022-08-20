@@ -348,7 +348,7 @@ void play_music(const int* pnote, const int* pbeat, const int* ptone,
 		case -3: note -= 13; break;
 		}
 		if (note != 0)
-			note += tone_switching;
+			note += tone_switching + tone_shift;
 		produce_sound(note, 60*1000*pbeat[i]/bpm/speed);
 	}
 }
