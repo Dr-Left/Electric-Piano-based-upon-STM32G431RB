@@ -36,21 +36,27 @@
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 
-const unsigned int note_freq[9] = {0 ,262, 294, 330, 349, 392, 440, 494, 523};
-//                                 rest,do,  re,  mi,  fa,  so,  la,  si,  do_high
+const double note_freq[9] = {0 ,262, 294, 330, 349, 392, 440, 494, 523};
+//                          rest,do,  re,  mi,  fa,  so,  la,  si,  do_high
+const int white_note[9] =        {0,   2,   4,   5,   7,    9,  11,  12}; // shift from MIDDLE_C
 
+#define MIDDLE_C 0x3C
 
 #define DEFAULT_DUTY 95
-#define BUZZER_MODE 0
+
+#define PIANO_MODE 0
 #define SONG_MODE_1 1
 #define SONG_MODE_2 2
 #define TOTAL_MODES 3
+
+#define OUTPUT_BUZZER 0
+#define OUTPUT_MIDI 1
 
 #define INCRE 1.05946
 
 const int score[10][4][402] =
 {
-	{0},
+	{{0}},
 	{ // 校歌
 		 {200, 3}, // 整体性质：score[i][0][0]速度(bpm),score[i][0][1]整体音调(0C,1C#这样)(挪动几个半音)。
 		 {1,1,3,5,5,  6,1,6,5,5,  3,3,5,3,1,  6,1,2,5,
@@ -94,6 +100,7 @@ const int score[10][4][402] =
 };
 
 int play_mode = 0;
+int output_device = OUTPUT_BUZZER;
 
 /* USER CODE END PM */
 
@@ -114,16 +121,45 @@ void setPWM(double freq, int duty_percent)
 	TIM3->CCR1 = (double)duty_percent * (TIM3->ARR + 1) / 100.0;
 }
 
-void init_buzzer()
+double note_to_frequency(int note)
 {
-	setPWM(0, 100);
-	HAL_Delay(1000);
-	unsigned int i;
-	for (i=1;i<=8;i++) {
-		setPWM(note_freq[i], DEFAULT_DUTY);
-		HAL_Delay(200);
+	return 440.0 * pow(2, (note - 69)/12.0);
+}
+
+void produce_sound(int note, int lasting_millisecond)
+{
+	if (output_device == OUTPUT_BUZZER) {
+		if (note == 0) {
+			setPWM(0, 100);
+			HAL_Delay(lasting_millisecond);
+			return ;
+		}
+		double freq = note_to_frequency(note);
+		setPWM(freq, DEFAULT_DUTY);
+		HAL_Delay(lasting_millisecond);
+		setPWM(0, 100);
+		HAL_Delay(50);
 	}
-	setPWM(0, 100);
+	else {
+		// send MIDI
+		unsigned char operation;
+		unsigned char sound;
+		unsigned char force;
+		char signal;
+		operation = 0x90;
+//		sound = 0x3C + ;
+//		HAL_UART_Transmit(&hlpuart1, &signal, 1, 0xffff);
+	}
+}
+
+void init_piano()
+{
+	produce_sound(0, 1000);
+	unsigned int i;
+	for (i=0;i<8;i++) {
+		produce_sound(MIDDLE_C + white_note[i], 200);
+	}
+	produce_sound(0, 0);
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) // Keys interrupt
@@ -158,33 +194,32 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) // Keys interrupt
 		// small button pushed down
 		freq /= 2.0;
 	}
-	if (play_mode == BUZZER_MODE)
-		setPWM(freq, DEFAULT_DUTY);
+	if (play_mode == PIANO_MODE)
+		setPWM(freq, DEFAULT_DUTY); // TODO: change: last for a certain period of time
 }
 
 
 
-void play_music(const int* pnote, const int* pbeat, const int* ptone, int bpm, int tone_shift)
+void play_music(const int* pnote, const int* pbeat, const int* ptone,
+		int bpm, int tone_shift)
 {
 	int i;
 	int init_mode = play_mode;
 	if (init_mode == 0)
 		return ;
 	for (i=0;pnote[i]!=-1 && play_mode == init_mode;i++) {
-		double freq = note_freq[pnote[i]];
+		int note = pnote[i]>0?(white_note[pnote[i]-1] + MIDDLE_C - 1):0;
+//		double freq = note_freq[pnote[i]];
 		switch (ptone[i]) {
-		case 1:  freq *= 2; break;
-		case 3: freq *= 2 * INCRE; break;
-		case -1: freq /= 2; break;
-		case 2:  freq *= INCRE; break;
-		case -2: freq /= INCRE; break;
-		case -3: freq /= 2 * INCRE; break;
+		case 1:  note += 12; break;
+		case 3:  note += 13; break;
+		case -1: note -= 12;; break;
+		case 2:  note++; break;
+		case -2: note--; break;
+		case -3: note -= 13; break;
 		}
-		freq *= pow(INCRE, tone_shift);
-		setPWM(freq, DEFAULT_DUTY);
-		HAL_Delay(60*1000*pbeat[i]/bpm);
-        setPWM(0, 100);
-        HAL_Delay(50);
+//		freq *= pow(INCRE, tone_shift);
+		produce_sound(note, 60*1000*pbeat[i]/bpm);
 	}
 }
 
@@ -248,12 +283,14 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  if (play_mode == BUZZER_MODE) {
-		  init_buzzer();
-		  while (play_mode==BUZZER_MODE);
+	  if (play_mode == PIANO_MODE) {
+		  init_piano();
+		  while (play_mode==PIANO_MODE);
 	  }
 	  HAL_Delay(1000);
-	  play_music(score[play_mode][1], score[play_mode][2], score[play_mode][3], score[play_mode][0][0], score[play_mode][0][1]); // score[music_num(SONG_MODE_1/2/...)][note/beat/tone]
+	  play_music(score[play_mode][1], score[play_mode][2], score[play_mode][3],
+			  score[play_mode][0][0], score[play_mode][0][1]);
+	  // score[music_num(SONG_MODE_1/2/...)][note/beat/tone]
   }
   /* USER CODE END 3 */
 }
