@@ -68,7 +68,7 @@ const int score[10][4][402] =
 {
 	{{0}},
 	{ // 校歌
-		 {200, 3}, // 整体性质：score[i][0][0]速度(bpm),score[i][0][1]整体音调(0C,1C#这样)(挪动几个半音)�???
+		 {200, 3}, // 整体性质：score[i][0][0]速度(bpm),score[i][0][1]整体音调(0C,1C#这样)(挪动几个半音)�??????
 		 {1,1,3,5,5,  6,1,6,5,5,  3,3,5,3,1,  6,1,2,5,
 		  6,6,6,1,5,  3,2,3,2,1,  2,5,5,4,5,  6,6,7,6,5,
 		  1,1,6,1,    5,5,6,5,    6,6,5,3,    2,2,3,5,
@@ -91,9 +91,9 @@ const int score[10][4][402] =
 		  0,0,0,0,    0,0,0,0,    0,0,0,0,    0,0,0,0,
 		  1,1,0,      0,0,0,      0,0,0,0,    0,0,0,0,
 		  1,1,0,      0,0,0,      0,0,0,0,    0,0,0,0,
-		  -1} //升降�???? +1�????8度，+2升半音，+3升八度且升半�???,-1�????8度，-2降半�????
+		  -1} //升降�??????? +1�???????8度，+2升半音，+3升八度且升半�??????,-1�???????8度，-2降半�???????
 	},
-	{ // 明明�???
+	{ // 明明�??????
 		 {280, 0},
 		 {3,3,4,3,6,1,2,7,0,3,3,4,3,3,4,5,6,0,3,3,4,3,6,6,0,3,6,6,7,1,0,
 		  3,3,4,3,6,1,2,7,0,3,3,4,5,6,7,5,7,6,0,3,4,3,6,6,6,7,2,1,6,6,7,6,6,
@@ -105,7 +105,7 @@ const int score[10][4][402] =
 
 		 {1,1,3,1,0,3,1,0,0,1,1,3,1,0,2,2,0,0,1,1,3,1,0,0,0,1,0,0,0,3,0,
 	      1,1,3,1,0,3,1,0,0,1,1,3,3,1,1,3,1,1,0,1,3,1,0,0,0,0,1,3,0,0,0,0,0,
-		  -1} //升降�???? +1�????8度，+2升半音，-1�????8度，-2降半�????
+		  -1} //升降�??????? +1�???????8度，+2升半音，-1�???????8度，-2降半�???????
 	},
 };
 
@@ -114,11 +114,16 @@ int output_device = OUTPUT_BUZZER;
 int current_note = 0;
 int key0_long_pushed = 0;
 int sounding_buffer = 0; // 1 needs to sound
+int pausing = 0;
+double speed = 1.0;
+int tone_switching = 0;
+uint8_t data_buff[1];
 
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
  UART_HandleTypeDef hlpuart1;
+UART_HandleTypeDef huart1;
 
 TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
@@ -189,6 +194,13 @@ void init_piano()
 	produce_sound(0, 0);
 }
 
+void init_walkman()
+{
+	pausing = 0;
+	speed = 1.0;
+//	tone_switching = 0;
+}
+
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) // Keys interrupt
 {
 	if (GPIO_Pin == GPIO_PIN_8) {
@@ -222,7 +234,19 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) // Keys interrupt
 	}
 	else {
 		// switch the walkman
+		switch (GPIO_Pin) {
+		case GPIO_PIN_1: pausing = !pausing; break;
+		case GPIO_PIN_2:  break;
+		case GPIO_PIN_3: speed += 0.25; break;
+		case GPIO_PIN_4: speed -= 0.25; break;
+		case GPIO_PIN_5: tone_switching++; break;
+		case GPIO_PIN_6: tone_switching--; break;
+//		case GPIO_PIN_7: tone += 12; break;
+//		case GPIO_PIN_8: tone -= 12; break;
+		}
 	}
+	int i;
+	for (i=0;i<0x3fff;i++);
 }
 
 
@@ -232,27 +256,29 @@ void play_music(const int* pnote, const int* pbeat, const int* ptone,
 {
 	int i;
 	int init_mode = play_mode;
+	int init_tone = tone_switching;
 	if (init_mode == 0)
 		return ;
-	for (i=0;pnote[i]!=-1 && play_mode == init_mode;i++) {
+	for (i=0;pnote[i]!=-1 && play_mode == init_mode && tone_switching==init_tone ;i++) {
+		while (pausing) ;
 		int note = pnote[i]>0?(white_note[pnote[i]-1] + MIDDLE_C - 1):0;
-//		double freq = note_freq[pnote[i]];
 		switch (ptone[i]) {
 		case 1:  note += 12; break;
 		case 3:  note += 13; break;
-		case -1: note -= 12;; break;
+		case -1: note -= 12; break;
 		case 2:  note++; break;
 		case -2: note--; break;
 		case -3: note -= 13; break;
 		}
-//		freq *= pow(INCRE, tone_shift);
-		produce_sound(note, 60*1000*pbeat[i]/bpm);
+		if (note != 0)
+			note += tone_switching;
+		produce_sound(note, 60*1000*pbeat[i]/bpm/speed);
 	}
 }
 int key0_last_status = 0;
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) //定时器的定时回调函数
 {
-	if (htim->Instance==TIM4) //确定是 TIM4 引起的中断
+	if (htim->Instance==TIM4) //确定�??? TIM4 引起的中�???
 	{
 		if (key0_last_status && KEY0) {
 			// long pressed
@@ -264,6 +290,29 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) //定时器的定时
 	}
 }
 
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+  /* Prevent unused argument(s) compilation warning */
+    UNUSED(huart);
+    switch (data_buff[0]) {
+	case 0x01: pausing = !pausing; break;
+	case 0x02:  break;
+	case 0x03: speed += 0.25; break;
+	case 0x04: speed -= 0.25; break;
+	case 0x05: tone_switching++; break;
+	case 0x06: tone_switching--; break;
+	case 0x07: tone_switching+=12; break;
+	case 0x08: tone_switching-=12; break;
+	case 0x10: play_mode = 1; break;
+	case 0x11: play_mode = 2; break;
+	case 0x12: play_mode = 3; break;
+	//		case GPIO_PIN_7: tone += 12; break;
+	//		case GPIO_PIN_8: tone -= 12; break;
+	}
+  while(HAL_UART_Receive_IT(&huart1, data_buff, 1) != HAL_OK); // Wait completly receive 1 byte data, and put data in rDataBuffer
+}
+
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -272,6 +321,7 @@ static void MX_GPIO_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_LPUART1_UART_Init(void);
 static void MX_TIM4_Init(void);
+static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -313,11 +363,13 @@ int main(void)
   MX_TIM3_Init();
   MX_LPUART1_UART_Init();
   MX_TIM4_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1); //启动定时器TIM3通道1的PWM输出
   HAL_TIM_Base_Start_IT(&htim4);
   //定义函数
   setPWM(0, DEFAULT_DUTY);
+  HAL_UART_Receive_IT(&huart1,data_buff, 1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -336,6 +388,7 @@ int main(void)
 			  }
 		  }
 	  }
+	  init_walkman();
 	  HAL_Delay(1000);
 	  play_music(score[play_mode][1], score[play_mode][2], score[play_mode][3],
 			  score[play_mode][0][0], score[play_mode][0][1]);
@@ -433,6 +486,54 @@ static void MX_LPUART1_UART_Init(void)
   /* USER CODE BEGIN LPUART1_Init 2 */
 
   /* USER CODE END LPUART1_Init 2 */
+
+}
+
+/**
+  * @brief USART1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART1_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART1_Init 0 */
+
+  /* USER CODE END USART1_Init 0 */
+
+  /* USER CODE BEGIN USART1_Init 1 */
+
+  /* USER CODE END USART1_Init 1 */
+  huart1.Instance = USART1;
+  huart1.Init.BaudRate = 9600;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  huart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  huart1.Init.ClockPrescaler = UART_PRESCALER_DIV1;
+  huart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  if (HAL_UART_Init(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetTxFifoThreshold(&huart1, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetRxFifoThreshold(&huart1, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_DisableFifoMode(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART1_Init 2 */
+
+  /* USER CODE END USART1_Init 2 */
 
 }
 
