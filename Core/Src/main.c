@@ -52,19 +52,29 @@ const int white_note[9] =        {0,   2,   4,   5,   7,    9,  11,  12}; // shi
 #define OUTPUT_BUZZER 0
 #define OUTPUT_MIDI 1
 
-#define INCRE 1.05946
+#define KEY0 HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_0) // key0 pushed down is high ttl
+#define KEY1 !HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_1)// other keys pushed down is low ttl
+#define KEY2 !HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_2)
+#define KEY3 !HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_3)
+#define KEY4 !HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_4)
+#define KEY5 !HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_5)
+#define KEY6 !HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_6)
+#define KEY7 !HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_7)
+#define KEY8 !HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_7)
+
+//#define INCRE 1.05946
 
 const int score[10][4][402] =
 {
 	{{0}},
 	{ // 校歌
-		 {200, 3}, // 整体性质：score[i][0][0]速度(bpm),score[i][0][1]整体音调(0C,1C#这样)(挪动几个半音)。
+		 {200, 3}, // 整体性质：score[i][0][0]速度(bpm),score[i][0][1]整体音调(0C,1C#这样)(挪动几个半音)�???
 		 {1,1,3,5,5,  6,1,6,5,5,  3,3,5,3,1,  6,1,2,5,
 		  6,6,6,1,5,  3,2,3,2,1,  2,5,5,4,5,  6,6,7,6,5,
-		  1,1,6,1,    5,5,6,5,    6,6,5,3,    2,3,4,5,
+		  1,1,6,1,    5,5,6,5,    6,6,5,3,    2,2,3,5,
 		  1,1,1,3,    2,3,2,1,    6,6,5,3,    2,2,3,1,
 		  1,1,0,      6,6,0,      5,5,6,5,    2,2,3,5,
-		  1,1,0,      6,6,0,      5,5,6,5,    2,2,3,1,
+		  1,1,0,      6,6,0,      5,5,6,5,    2,3,2,1,
 		  -1}, // 基本音符
 
 		 {2,1,1,2,2,  2,1,1,2,2,  2,2,1,1,2,  2,1,1,4,
@@ -81,9 +91,9 @@ const int score[10][4][402] =
 		  0,0,0,0,    0,0,0,0,    0,0,0,0,    0,0,0,0,
 		  1,1,0,      0,0,0,      0,0,0,0,    0,0,0,0,
 		  1,1,0,      0,0,0,      0,0,0,0,    0,0,0,0,
-		  -1} //升降�? +1�?8度，+2升半音，+3升八度且升半音,-1�?8度，-2降半�?
+		  -1} //升降�???? +1�????8度，+2升半音，+3升八度且升半�???,-1�????8度，-2降半�????
 	},
-	{ // 明明就
+	{ // 明明�???
 		 {280, 0},
 		 {3,3,4,3,6,1,2,7,0,3,3,4,3,3,4,5,6,0,3,3,4,3,6,6,0,3,6,6,7,1,0,
 		  3,3,4,3,6,1,2,7,0,3,3,4,5,6,7,5,7,6,0,3,4,3,6,6,6,7,2,1,6,6,7,6,6,
@@ -95,12 +105,15 @@ const int score[10][4][402] =
 
 		 {1,1,3,1,0,3,1,0,0,1,1,3,1,0,2,2,0,0,1,1,3,1,0,0,0,1,0,0,0,3,0,
 	      1,1,3,1,0,3,1,0,0,1,1,3,3,1,1,3,1,1,0,1,3,1,0,0,0,0,1,3,0,0,0,0,0,
-		  -1} //升降�? +1�?8度，+2升半音，-1�?8度，-2降半�?
+		  -1} //升降�???? +1�????8度，+2升半音，-1�????8度，-2降半�????
 	},
 };
 
 int play_mode = 0;
 int output_device = OUTPUT_BUZZER;
+int current_note = 0;
+int key0_long_pushed = 0;
+int sounding_buffer = 0; // 1 needs to sound
 
 /* USER CODE END PM */
 
@@ -108,6 +121,7 @@ int output_device = OUTPUT_BUZZER;
  UART_HandleTypeDef hlpuart1;
 
 TIM_HandleTypeDef htim3;
+TIM_HandleTypeDef htim4;
 
 /* USER CODE BEGIN PV */
 
@@ -142,13 +156,26 @@ void produce_sound(int note, int lasting_millisecond)
 	}
 	else {
 		// send MIDI
+		if (note == 0) {
+			HAL_Delay(lasting_millisecond);
+			return ;
+		}
 		unsigned char operation;
 		unsigned char sound;
 		unsigned char force;
-		char signal;
 		operation = 0x90;
-//		sound = 0x3C + ;
-//		HAL_UART_Transmit(&hlpuart1, &signal, 1, 0xffff);
+		sound = note;
+		force = 0x7F;
+		HAL_UART_Transmit(&hlpuart1, &operation, 1, 0xffff);
+		HAL_UART_Transmit(&hlpuart1, &sound, 1, 0xffff);
+		HAL_UART_Transmit(&hlpuart1, &force, 1, 0xffff);
+		HAL_Delay(lasting_millisecond);
+		operation = 0x80;
+		force = 0x00;
+		HAL_UART_Transmit(&hlpuart1, &operation, 1, 0xffff);
+		HAL_UART_Transmit(&hlpuart1, &sound, 1, 0xffff);
+		HAL_UART_Transmit(&hlpuart1, &force, 1, 0xffff);
+		HAL_Delay(50);
 	}
 }
 
@@ -164,11 +191,6 @@ void init_piano()
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) // Keys interrupt
 {
-//	if (clock - lastTime <= 80) {
-//		lastTime = clock;
-//		return ;
-//	}
-//	lastTime = clock;
 	if (GPIO_Pin == GPIO_PIN_8) {
 		if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_0)) {
 			// switch mode
@@ -176,26 +198,31 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) // Keys interrupt
 		}
 		return ;
 	}
-	double freq = 0.0;
-	switch (GPIO_Pin) {
-	case GPIO_PIN_1: freq = note_freq[1]; break;
-	case GPIO_PIN_2: freq = note_freq[2]; break;
-	case GPIO_PIN_3: freq = note_freq[3]; break;
-	case GPIO_PIN_4: freq = note_freq[4]; break;
-	case GPIO_PIN_5: freq = note_freq[5]; break;
-	case GPIO_PIN_6: freq = note_freq[6]; break;
-	case GPIO_PIN_7: freq = note_freq[7]; break;
+
+	if (play_mode == PIANO_MODE) {
+		current_note = MIDDLE_C;
+		switch (GPIO_Pin) {
+		case GPIO_PIN_1: current_note += white_note[0]; break;
+		case GPIO_PIN_2: current_note += white_note[1]; break;
+		case GPIO_PIN_3: current_note += white_note[2]; break;
+		case GPIO_PIN_4: current_note += white_note[3]; break;
+		case GPIO_PIN_5: current_note += white_note[4]; break;
+		case GPIO_PIN_6: current_note += white_note[5]; break;
+		case GPIO_PIN_7: current_note += white_note[6]; break;
+		}
+		if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_0)) {
+			// big button pushed down
+			current_note += 12;
+		}
+		if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_8) == 0) {
+			// small button pushed down
+			current_note -= 12;
+		}
+		sounding_buffer = 1;
 	}
-	if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_0)) {
-		// big button pushed down
-		freq *= 2.0;
+	else {
+		// switch the walkman
 	}
-	if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_8) == 0) {
-		// small button pushed down
-		freq /= 2.0;
-	}
-	if (play_mode == PIANO_MODE)
-		setPWM(freq, DEFAULT_DUTY); // TODO: change: last for a certain period of time
 }
 
 
@@ -222,6 +249,20 @@ void play_music(const int* pnote, const int* pbeat, const int* ptone,
 		produce_sound(note, 60*1000*pbeat[i]/bpm);
 	}
 }
+int key0_last_status = 0;
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) //定时器的定时回调函数
+{
+	if (htim->Instance==TIM4) //确定是 TIM4 引起的中断
+	{
+		if (key0_last_status && KEY0) {
+			// long pressed
+			key0_long_pushed = 1;
+			output_device = !output_device;
+			while (KEY0);
+		}
+		key0_last_status = KEY0;
+	}
+}
 
 /* USER CODE END PV */
 
@@ -230,6 +271,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_LPUART1_UART_Init(void);
+static void MX_TIM4_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -270,8 +312,10 @@ int main(void)
   MX_GPIO_Init();
   MX_TIM3_Init();
   MX_LPUART1_UART_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1); //启动定时器TIM3通道1的PWM输出
+  HAL_TIM_Base_Start_IT(&htim4);
   //定义函数
   setPWM(0, DEFAULT_DUTY);
   /* USER CODE END 2 */
@@ -285,7 +329,12 @@ int main(void)
     /* USER CODE BEGIN 3 */
 	  if (play_mode == PIANO_MODE) {
 		  init_piano();
-		  while (play_mode==PIANO_MODE);
+		  while (play_mode==PIANO_MODE) {
+			  if (sounding_buffer) {
+				  produce_sound(current_note, 500);
+				  sounding_buffer = 0;
+			  }
+		  }
 	  }
 	  HAL_Delay(1000);
 	  play_music(score[play_mode][1], score[play_mode][2], score[play_mode][3],
@@ -443,6 +492,51 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 2 */
   HAL_TIM_MspPostInit(&htim3);
+
+}
+
+/**
+  * @brief TIM4 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM4_Init(void)
+{
+
+  /* USER CODE BEGIN TIM4_Init 0 */
+
+  /* USER CODE END TIM4_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM4_Init 1 */
+
+  /* USER CODE END TIM4_Init 1 */
+  htim4.Instance = TIM4;
+  htim4.Init.Prescaler = 16999;
+  htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim4.Init.Period = 19999;
+  htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim4, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim4, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM4_Init 2 */
+
+  /* USER CODE END TIM4_Init 2 */
 
 }
 
