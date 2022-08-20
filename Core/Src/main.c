@@ -45,6 +45,10 @@ const int white_note[9] =        {0,   2,   4,   5,   7,    9,  11,  12}; // shi
 #define DEFAULT_DUTY 95
 
 #define PIANO_MODE 0
+#define SONG_MODE_1 1
+#define SONG_MODE_2 2
+#define SONG_MODE_3 3
+#define SONG_MODE_4 4
 #define TOTAL_MODES 5
 
 #define OUTPUT_BUZZER 0
@@ -66,7 +70,7 @@ const int score[10][4][402] =
 {
 	{{0}},
 	{ // 校歌
-		 {200, 3}, // 整体性质：score[i][0][0]速度(bpm),score[i][0][1]整体音调(0C,1C#这样)(挪动几个半音)�??????
+		 {200, 3}, // 整体性质：score[i][0][0]速度(bpm),score[i][0][1]整体音调(0C,1C#这样)(挪动几个半音)�?????????
 		 {1,1,3,5,5,  6,1,6,5,5,  3,3,5,3,1,  6,1,2,5,
 		  6,6,6,1,5,  3,2,3,2,1,  2,5,5,4,5,  6,6,7,6,5,
 		  1,1,6,1,    5,5,6,5,    6,6,5,3,    2,2,3,5,
@@ -89,9 +93,9 @@ const int score[10][4][402] =
 		  0,0,0,0,    0,0,0,0,    0,0,0,0,    0,0,0,0,
 		  1,1,0,      0,0,0,      0,0,0,0,    0,0,0,0,
 		  1,1,0,      0,0,0,      0,0,0,0,    0,0,0,0,
-		  -1} //升降�??????? +1�???????8度，+2升半音，+3升八度且升半�??????,-1�???????8度，-2降半�???????
+		  -1} //升降�?????????? +1�??????????8度，+2升半音，+3升八度且升半�?????????,-1�??????????8度，-2降半�??????????
 	},
-	{ // 明明�??????
+	{ // 明明�?????????
 		 {280, 0},
 		 {3,3,4,3,6,1,2,7,0,3,3,4,3,3,4,5,6,0,3,3,4,3,6,6,0,3,6,6,7,1,0,
 		  3,3,4,3,6,1,2,7,0,3,3,4,5,6,7,5,7,6,0,3,4,3,6,6,6,7,2,1,6,6,7,6,6,
@@ -103,7 +107,7 @@ const int score[10][4][402] =
 
 		 {1,1,3,1,0,3,1,0,0,1,1,3,1,0,2,2,0,0,1,1,3,1,0,0,0,1,0,0,0,3,0,
 	      1,1,3,1,0,3,1,0,0,1,1,3,3,1,1,3,1,1,0,1,3,1,0,0,0,0,1,3,0,0,0,0,0,
-		  -1} //升降�??????? +1�???????8度，+2升半音，-1�???????8度，-2降半�???????
+		  -1} //升降�?????????? +1�??????????8度，+2升半音，-1�??????????8度，-2降半�??????????
 	},
 	{ // 十年
 		 {280, -3},
@@ -117,7 +121,7 @@ const int score[10][4][402] =
 
 		 {0,0,0,0,  0,0,0,0,0,  0,0,0,0,0,  0,-1,0,0,-1,  0,-1,-1,0,0,-1,-1,  -1,0,0,0,-1,0,  0,0,0,0,  0,0,0,0,0,  0,
 		  0,0,0,0,  0,0,0,0,0,  0,0,0,0,0,  0,-1,0,0,-1,  0,-1,-1,0,0,-1,-1,  -1,0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0,0,-1,0,
-		  -1} //升降调 +1升8度，+2升半音，-1降8度，-2降半音
+		  -1} //升降�??? +1�???8度，+2升半音，-1�???8度，-2降半�???
 	},
 	{ // Big Big World
 		 {480, 0},
@@ -134,7 +138,7 @@ const int score[10][4][402] =
 		 {0,0,  0,0,0,0,0,     0,0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0,        0,0,0,0,0,           0,0,0,0,0,      0,0,0,0,0,0,0,0,
 		  0,-1,0,-1,0,-1,0,-1, 0,0,0,0,0,    0,0,0,0,    0,0,0,      0,0,0,0,0,0,      0,0,0,0,0,           0,0,0,0,0,0,0,  0,0,0,0,0,-1,0,   0,0,0,0,  0,0,0,  0,0,
 		        0,0,0,0,0,     0,0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0,0,0,0,  0,0,0,0,-1,-1,-1,0,  0,0,0,0,        0,0,0,
-		  -1} //升降调 +1升8度，+2升半音，-1降8度，-2降半音
+		  -1} //升降�??? +1�???8度，+2升半音，-1�???8度，-2降半�???
 	},
 };
 
@@ -146,6 +150,8 @@ int sounding_buffer = 0; // 1 needs to sound
 int pausing = 0;
 double speed = 1.0;
 int tone_switching = 0;
+int restart = 0;
+uint16_t LED_state = 0x03C0;  // 1 for on, 0 for off
 uint8_t data_buff[1];
 
 /* USER CODE END PM */
@@ -236,6 +242,47 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) // Keys interrupt
 		if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_0)) {
 			// switch mode
 			play_mode = (play_mode + 1) % TOTAL_MODES;
+			switch (play_mode) {
+			case PIANO_MODE:
+				LED_state |= GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9;
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, 0);
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, 0);
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, 0);
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, 0);
+				break;
+			case SONG_MODE_1:
+				LED_state |= GPIO_PIN_6;
+				LED_state &= ~(GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_9);
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, 0);
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, 1);
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, 1);
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, 1);
+				break;
+			case SONG_MODE_2:
+				LED_state |= GPIO_PIN_7;
+				LED_state &= ~(GPIO_PIN_6 | GPIO_PIN_8 | GPIO_PIN_9);
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, 1);
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, 0);
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, 1);
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, 1);
+				break;
+			case SONG_MODE_3:
+				LED_state |= GPIO_PIN_8;
+				LED_state &= ~(GPIO_PIN_7 | GPIO_PIN_6 | GPIO_PIN_9);
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, 1);
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, 1);
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, 0);
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, 1);
+				break;
+			case SONG_MODE_4:
+				LED_state |= GPIO_PIN_9;
+				LED_state &= ~(GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_6);
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, 1);
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, 1);
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, 1);
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, 0);
+				break;
+			}
 		}
 		return ;
 	}
@@ -265,13 +312,13 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) // Keys interrupt
 		// switch the walkman
 		switch (GPIO_Pin) {
 		case GPIO_PIN_1: pausing = !pausing; break;
-		case GPIO_PIN_2:  break;
+		case GPIO_PIN_2: init_walkman(); tone_switching = 0; restart = 1; break;
 		case GPIO_PIN_3: speed += 0.25; break;
 		case GPIO_PIN_4: speed -= 0.25; break;
 		case GPIO_PIN_5: tone_switching++; break;
 		case GPIO_PIN_6: tone_switching--; break;
-//		case GPIO_PIN_7: tone += 12; break;
-//		case GPIO_PIN_8: tone -= 12; break;
+		case GPIO_PIN_7: tone_switching += 12; break;
+		case GPIO_PIN_8: tone_switching -= 12; break;
 		}
 	}
 	int i;
@@ -288,7 +335,8 @@ void play_music(const int* pnote, const int* pbeat, const int* ptone,
 	int init_tone = tone_switching;
 	if (init_mode == 0)
 		return ;
-	for (i=0;pnote[i]!=-1 && play_mode == init_mode && tone_switching==init_tone ;i++) {
+	restart = 0;
+	for (i=0;pnote[i]!=-1 && play_mode == init_mode && tone_switching==init_tone && !restart;i++) {
 		while (pausing) ;
 		int note = pnote[i]>0?(white_note[pnote[i]-1] + MIDDLE_C):0;
 		switch (ptone[i]) {
@@ -307,15 +355,30 @@ void play_music(const int* pnote, const int* pbeat, const int* ptone,
 int key0_last_status = 0;
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) //定时器的定时回调函数
 {
-	if (htim->Instance==TIM4) //确定�??? TIM4 引起的中�???
+	if (htim->Instance==TIM4) //确定�?????? TIM4 引起的中�??????
 	{
 		if (key0_last_status && KEY0) {
 			// long pressed
 			key0_long_pushed = 1;
 			output_device = !output_device;
+			if (output_device==OUTPUT_MIDI) {
+				uint16_t i;
+				for (i=0x0040;i<=0x0200;i<<=1)
+					if (LED_state & i) {
+						HAL_GPIO_WritePin(GPIOC, i, 0);
+					}
+			}
 			while (KEY0);
 		}
 		key0_last_status = KEY0;
+		if (output_device == OUTPUT_BUZZER) {
+			// blinking for BUZZER MODE
+			uint16_t i;
+			for (i=0x0040;i<=0x0200;i<<=1)
+			if (LED_state & i) {
+				HAL_GPIO_TogglePin(GPIOC, i);
+			}
+		}
 	}
 }
 
@@ -325,7 +388,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     UNUSED(huart);
     switch (data_buff[0]) {
 	case 0x01: pausing = !pausing; break;
-	case 0x02:  break;
+	case 0x02: init_walkman(); tone_switching = 0; restart = 1; break;
 	case 0x03: speed += 0.25; break;
 	case 0x04: speed -= 0.25; break;
 	case 0x05: tone_switching++; break;
@@ -685,6 +748,9 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6|GPIO_PIN_7|GPIO_PIN_8|GPIO_PIN_9, GPIO_PIN_SET);
+
   /*Configure GPIO pin : PC13 */
   GPIO_InitStruct.Pin = GPIO_PIN_13;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
@@ -704,6 +770,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PC6 PC7 PC8 PC9 */
+  GPIO_InitStruct.Pin = GPIO_PIN_6|GPIO_PIN_7|GPIO_PIN_8|GPIO_PIN_9;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI1_IRQn, 0, 0);
