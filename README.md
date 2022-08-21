@@ -36,7 +36,7 @@
 
  
 
- ![img](.\1.png) 
+![image](https://github.com/Dr-Left/Electric-Piano-based-upon-STM32G431RB/blob/master/1.png)
 
 
 
